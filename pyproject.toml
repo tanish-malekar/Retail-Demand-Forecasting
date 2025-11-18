@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+[project]
+name = "retail-demand-forecasting"
+version = "0.1.0"
+description = "Global retail forecasting and hierarchical M5 evaluation"
+requires-python = ">=3.11,<3.14"
+dependencies = ["lightgbm==4.6.0", "prophet==1.2.1", "pandas==2.3.3", "numpy==2.3.4", "scipy==1.16.3", "scikit-learn==1.7.2", "matplotlib==3.10.7"]
+[project.optional-dependencies]
+dev = ["pytest==8.4.2"]
+[project.scripts]
+m5-forecast = "retail_forecast.cli:main"
+[tool.setuptools.packages.find]
+include = ["retail_forecast*"]
+[tool.pytest.ini_options]
+testpaths = ["tests"]
