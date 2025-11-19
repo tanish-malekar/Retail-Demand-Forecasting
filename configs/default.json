@@ -1,0 +1,11 @@
+{
+  "horizon": 28,
+  "training_days": 365,
+  "boosting_rounds": 500,
+  "learning_rate": 0.05,
+  "num_leaves": 63,
+  "min_data_in_leaf": 100,
+  "threads": 8,
+  "seed": 42,
+  "prophet_workers": 4
+}
