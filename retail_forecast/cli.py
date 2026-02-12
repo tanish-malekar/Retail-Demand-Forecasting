@@ -31,6 +31,9 @@ def main():
     parser.add_argument("--config", type=Path, default=Path("configs/default.json"))
     parser.add_argument("--limit", type=int, help="Use a labeled subset of bottom series")
     parser.add_argument("--with-prophet", action="store_true", help="Fit every selected series separately for a matched comparison")
+    parser.add_argument("--with-inventory", action="store_true", help="Fit quantile models and compare simulated reorder policies")
+    parser.add_argument("--inventory-config", type=Path, default=Path("configs/inventory.json"))
+    parser.add_argument("--inventory-series", type=int, help="Limit the inventory comparison universe, while retaining the global model")
     args = parser.parse_args()
     config = Training(**json.loads(args.config.read_text()))
     if config.horizon != 28:
@@ -71,6 +74,12 @@ def main():
         report["prophet"] = {**baseline_score, "configuration": baseline_config}
         if baseline_score["wrmsse"] > 0:
             report["relative_wrmsse_reduction_percent"] = float((1 - score["wrmsse"] / baseline_score["wrmsse"]) * 100)
+        write_json(args.output / "evaluation.json", report)
+    if args.with_inventory:
+        from .inventory import Inventory
+        from .inventory_run import run_inventory
+        inventory_config = Inventory(**json.loads(args.inventory_config.read_text()))
+        report["inventory"] = run_inventory(data, builder, cutoff, prediction, args.output, inventory_config, args.inventory_series)
         write_json(args.output / "evaluation.json", report)
     from .plots import plot_totals
     plot_totals(data.calendar.date.iloc[cutoff:], actual, prediction, args.output / "demand.png")
