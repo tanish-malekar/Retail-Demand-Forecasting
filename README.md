@@ -1,4 +1,4 @@
-# Retail Demand Forecasting
+# Retail Demand Forecasting and Inventory Simulation
 
 A demand-planning project using a global LightGBM model, per-series Prophet
 baselines, pandas feature preparation, and hierarchical M5 evaluation. It forecasts
@@ -112,6 +112,52 @@ The fixture is explicitly synthetic and supports pipeline development. Full runs
 require exactly 30,490 rows; `--limit` enables a scoped subset. To limit nested
 numerical-library parallelism when using many Prophet workers, set the appropriate
 BLAS/OpenMP thread environment before starting the process.
+
+## Quantile forecasts and inventory simulation
+
+`--with-inventory` fits global LightGBM quantile models on the same pre-holdout
+feature matrix, then generates **10,000 demand paths per selected item** for a
+28-day inventory comparison. Independent calibration paths select policy settings.
+
+```sh
+m5-forecast --data data/raw --output artifacts/inventory-01 --with-inventory
+m5-forecast --data data/raw --output artifacts/inventory-subset --limit 128 --with-prophet --with-inventory
+```
+
+`configs/inventory.json` controls quantiles, path counts, lead time, cycle quantity,
+service level, unit-cost proxy, random seed, and cost-match tolerance.
+`--inventory-series` can scope simulation separately from global-model training.
+The pipeline reports pinball loss, interval coverage, and quantile crossings;
+monotone rearrangement corrects crossings before demand sampling.
+
+Quantile forecasts share a recursively updated median demand history. A Gaussian
+AR(1) copula supplies within-item temporal dependence, with a shrunk rank-based
+correlation estimated from training demand innovations. Inverse-CDF interpolation
+and stochastic rounding generate nonnegative integer demand. The distribution
+has explicit bounded upper-tail extrapolation; cross-item shocks are independent.
+These are modeled demand scenarios rather than observed future sales.
+
+The simulator uses daily review, lost sales, fixed order quantities, and a
+configurable deterministic replenishment lead time. Each policy starts with its
+reorder point plus one order quantity on hand and an empty pipeline. Inventory
+capital includes both on-hand and in-transit units, valued at a configurable
+fraction of the last known selling price as a procurement-cost proxy.
+
+The baseline uses a mean-plus-normal-safety-stock reorder point. Candidate reorder
+points come from simulated lead-time demand quantiles. A portfolio Lagrangian
+allocation chooses low/high per-item reorder points and a replication-level mixing
+probability to match the baseline's **expected calibration inventory capital**.
+Both policies face the same fresh evaluation demand paths. The report includes
+realized cost gaps and only emits `matched_stockout_reduction_percent` when the
+cost gap falls within the configured tolerance. Negative reductions indicate
+worse stockout performance; a zero-stockout baseline has no relative reduction.
+The uncertainty interval reflects Monte Carlo sampling error, not all model or
+business uncertainty. Policy selection never uses held-out observed sales.
+
+Artifacts include `quantile_forecast.npy`, quantile model files,
+`inventory_calibration_curves.csv`, `reorder_policies.csv`,
+`inventory_by_item.csv`, and `inventory_evaluation.json`. Full-universe simulation
+is computationally intensive, so item-by-item processing bounds path memory.
 
 ## Artifacts
 
